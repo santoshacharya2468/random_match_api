@@ -21,7 +21,7 @@ pub async fn require_auth(
                 Json(json!({ "message": "Missing or invalid token","success":false })),
             )
         })?;
-        let result=verify_token(token, app_state);
+        let result=verify_token(token, app_state).await;
         match result {
             Ok(user) => {
                 req.extensions_mut().insert(user);

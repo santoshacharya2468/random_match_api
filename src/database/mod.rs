@@ -1,12 +1,12 @@
-use diesel::r2d2::{self, ConnectionManager, Pool};
-use diesel:: PgConnection;
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 
 
-pub fn establish_connection() -> Pool<ConnectionManager<PgConnection>> {
-    let database_url = std::env::var("DATABASE_URL").unwrap();
-    let manager = ConnectionManager::<PgConnection>::new(database_url);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create connection pool");
-  pool
+
+
+pub async fn establish_connection() -> Pool<Postgres> {
+    let db_url = std::env::var("DATABASE_URL").unwrap();
+   let pool= PgPoolOptions::new()
+    .max_connections(5)
+    .connect(&db_url).await.unwrap();
+    pool
 }

@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
-#[derive(Deserialize,Serialize,Debug,FromRow)]
+#[derive(Deserialize,Serialize,Debug,FromRow,Clone)]
 pub struct RandomMatch {
  pub id:i32,
  pub created_at:Option<chrono::NaiveDateTime>,

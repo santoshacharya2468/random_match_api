@@ -21,6 +21,8 @@ impl  RandomMatchService {
        match  previous_match{
            Ok(random_match)=>{
                if random_match.is_some(){
+                 let sender=self.app_state.broadcaster.as_ref();
+                 sender.send(random_match.clone().unwrap()).unwrap();
                    return Ok(random_match.unwrap());
                }
            },

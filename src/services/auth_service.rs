@@ -1,8 +1,6 @@
 use std::env;
-
 use crate::{dtos::{ auth_tokens::AuthTokens, social_login_requet::{LoginProvider, SocialLoginRequest}, social_user::{FacebookUser, GoogleUser, SocialUser}}, 
-models::{auth_user::AuthUser, schema::auth_users::{self, email, external_id, id, provider, username}}, utils::app_error::AppError, AppState};
-use diesel::prelude::*;
+models::auth_user::AuthUser, utils::app_error::AppError, AppState};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -68,10 +66,8 @@ impl  AuthService {
         }
     }
     async fn get_or_create_auth_user(&self,social_user:SocialUser)->Result<AuthUser,AppError>{
-       let conn=&mut self.app_state.db();
-       let result=auth_users::table
-       .filter(external_id.eq(social_user.identifier.clone()))
-       .first(conn);
+       let conn=& self.app_state.db_pool();
+       let result=sqlx::query_as!(AuthUser,"select * from auth_users where external_id=$1 and provider=$2",social_user.identifier,social_user.provider).fetch_one(conn).await;
        match result{
            Ok(user)=>Ok(user),
            Err(_)=>{
@@ -81,14 +77,8 @@ impl  AuthService {
        }
     }
     async  fn create_auth_user(&self,user:SocialUser)->Result<AuthUser,AppError>{
-        let conn=&mut self.app_state.db();
-        let result=diesel::insert_into(auth_users::table)
-        .values((
-        username.eq(user.username),
-        email.eq(user.email),
-        provider.eq(user.provider),
-        external_id.eq(user.identifier)))
-        .get_result(conn);
+        let conn=& self.app_state.db_pool();
+        let result= sqlx::query_as!(AuthUser,"insert into auth_users(username,email,provider,external_id) values($1,$2,$3,$4) returning *",user.username,user.email,user.provider,user.identifier).fetch_one(conn).await;
         match result{
             Ok(user)=>Ok(user),
             Err(e)=>Err(AppError::new(e.to_string()))
@@ -115,16 +105,14 @@ impl  AuthService {
 
    
 }
-pub  fn verify_token(token:&str,app_state:AppState)->Result<AuthUser,AppError>{
+pub async  fn verify_token(token:&str,app_state:AppState)->Result<AuthUser,AppError>{
   let claim=jsonwebtoken::decode::<UserClaims>(&token, &DecodingKey::from_secret("secret".as_ref()), &jsonwebtoken::Validation::default());
   if claim.is_err(){
       return Err(AppError::new("Invalid Token".to_string()));
   }
   let claim=claim.unwrap();
-  let conn=&mut app_state.db();
-  let result=auth_users::table
-  .filter(id.eq(claim.claims.identifier))
-  .first(conn);
+  let conn=& app_state.db_pool();
+   let result=  sqlx::query_as!(AuthUser,"select * from auth_users where id=$1",claim.claims.identifier).fetch_one(conn).await;
   match result{
       Ok(user)=>Ok(user),
       Err(e)=>Err(AppError::new(e.to_string()))
